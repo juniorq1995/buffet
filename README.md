@@ -30,8 +30,19 @@ https://eodhistoricaldata.com/knowledgebase/list-supported-indices/
 
 # Will need to run after each exchange closes and update the rankings after a GMT time has passed (considering the time and date differences)
 # Have settings that control how often the data is updated
-# Default will be weekly on Sunday with the rankings being updated as well
+# Default will be weekly on Sunday with the rankings being updated as wellcd work
 # db will also be updated daily using api calls
 # usage of api limits will be measured on both ends as well as the time spent
 
 # run 'pgsql' to start postgres in terminal
+
+From the psql command line interface,
+
+First, choose your database
+
+\c database_name
+Then, this shows all tables in the current schema:
+
+\dt
+
+sudo -u postgres psql

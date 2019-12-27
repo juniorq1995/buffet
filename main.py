@@ -15,6 +15,28 @@ import Constants
 from datetime import date, datetime, timedelta
 import json
 
+ex_cols = (
+    'symbol',
+    'exchange',
+    'year_one_roi_total',
+    'year_two_roi_total',
+    'year_three_roi_total',
+    'year_four_roi_total',
+    'year_eight_roi_total',
+    'year_twelve_roi_total',
+    'year_sixteen_roi_total',
+    'year_twenty_roi_total',
+    'roi_total',
+    'year_two_roi_avg',
+    'year_three_roi_avg',
+    'year_four_roi_avg',
+    'year_eight_roi_avg',
+    'year_twelve_roi_avg',
+    'year_sixteen_roi_avg',
+    'year_twenty_roi_avg',
+    'total_roi_avg',
+    'last_updated',
+)
 service_key = Constants.EOD_API_TOKEN
 exchanges = ['lse']
 def get_nearest_day(missing_day, idx):
@@ -35,25 +57,62 @@ def connect_to_db():
     conn = psycopg2.connect(conn_string)
     print("Connected!")
 
-def get_total_roi_for_years(years_back, df):
-    latest = df.first_valid_index()
-    latest_price = df[latest]
+def get_total_roi_for_years(years_back, pddf):
+    latest = pddf.first_valid_index()
+    latest_price = pddf[latest]
     years_back_date = latest - timedelta(days=years_back*365)
-    if years_back_date < df.last_valid_index():
-        return None
-    if years_back_date not in df.index:
+    if years_back_date not in pddf.index:
         years_back_date = get_nearest_day(years_back_date, df.index)
-    years_back_price = df[years_back_date]
+    if years_back_date < pddf.last_valid_index():
+        return None
+    years_back_price = pddf[years_back_date]
     return (latest_price - years_back_price) / years_back_price
 
-def get_total_roi(df):
-    latest = df.first_valid_index()
-    latest_price = df[latest]
-    years_back_price = df[df.last_valid_index()]
+def get_total_roi(pddf):
+    latest = pddf.first_valid_index()
+    latest_price = pddf[latest]
+    years_back_price = pddf[pddf.last_valid_index()]
     return (latest_price - years_back_price) / years_back_price
 
-def get_avg_roi_for_years(years_back, df):
+def get_avg_roi_for_years(years_back, pddf):
+    total = 0
+    count = 0
+    latest = pddf.first_valid_index()
+    while years_back >= count:
+        latest_date = latest - timedelta(days=count * 365)
+        years_back_date = latest - timedelta(days=(count+1) * 365)
+        if years_back_date not in pddf.index:
+            years_back_date = get_nearest_day(years_back_date, pddf.index)
+        if latest_date not in pddf.index:
+            latest_date = get_nearest_day(latest_date, pddf.index)
+        if years_back_date < pddf.last_valid_index():
+            return None
+        latest_price = pddf[latest_date]
+        years_back_price = pddf[years_back_date]
+        roi = (latest_price - years_back_price) / years_back_price
+        total += roi
+        count+=1
+    return total / years_back
 
+def get_avg_roi_total(pddf):
+    total = 0
+    count = 0
+    latest = pddf.first_valid_index()
+    years_back_date = latest - timedelta(days=(count + 1) * 365)
+    first_entry = pddf.last_valid_index()
+    while years_back_date > first_entry:
+        latest_date = latest - timedelta(days=count * 365)
+        years_back_date = latest - timedelta(days=(count + 1) * 365)
+        if years_back_date not in pddf.index:
+            years_back_date = get_nearest_day(years_back_date, pddf.index)
+        if latest_date not in pddf.index:
+            latest_date = get_nearest_day(latest_date, pddf.index)
+        latest_price = pddf[latest_date]
+        years_back_price = pddf[years_back_date]
+        roi = (latest_price - years_back_price) / years_back_price
+        total += roi
+        count += 1
+    return total / count
 
 while(True):
     now = datetime.now()
@@ -61,26 +120,7 @@ while(True):
     # update databases
     if now.weekday() <= 4 and now.time() > start.time():
         for ex in exchanges:
-            ex_df = pd.DataFrame(columns=[
-                                        'symbol',
-                                        'exchange',
-                                        'year_one_roi_total',
-                                        'year_two_roi_total',
-                                        'year_two_roi_avg',
-                                        'year_three_roi_total',
-                                        'year_three_roi_avg',
-                                        'year_four_roi_total',
-                                        'year_four_roi_avg',
-                                        'year_eight_roi_total',
-                                        'year_eight_roi_avg',
-                                        'year_twelve_roi_total',
-                                        'year_twelve_roi_avg',
-                                        'year_sixteen_roi_total',
-                                        'year_sixteen_roi_avg',
-                                        'year_twenty_roi_total',
-                                        'year_twenty_roi_avg',
-                                        'last_updated',
-                                        ])
+            #ex_df = pd.DataFrame(columns=ex_cols)
             symbols_json = get_all_exchange_symbols(ex)
             symbols_dict = ['gaw']#json.loads(symbols_json)  # obj now contains a dict of the data
             for symbol in symbols_dict:
@@ -108,29 +148,65 @@ while(True):
                 year_twenty_roi_avg = get_avg_roi_for_years(20, df)
                 avg_roi_total = get_avg_roi_total(df)
 
-                print(year_one_roi_total)
-                print(year_two_roi_total)
-                print(year_three_roi_total)
-                print(year_four_roi_total)
-                print(year_eight_roi_total)
-                print(year_twelve_roi_total)
-                print(year_sixteen_roi_total)
-                print(year_twenty_roi_total)
-
-            # Sort the exchange symbols by
-                # Calculate total ROI and average ROI for 1,2,3,4,8,12,16,20 years
-                # Columns for roi db:
-                # id, symbol, exchange, total & avg roi for 1,2,3,4,8,12,16,20 years
-                # DataFrame.to_sql in pandas
-
-
-    # Update metadata on saturday
-    #elif now.weekday < 6:
-
-    # Sleep until next closing time for exchange
-    # If it is the weekend then being metadata calculations and save in DB
-
-    # Edge cases: for milestones, ignore leap years for 1,2,3 year milestones (use historical Februaury 28th instead if current day is leap year
-    # How to synchornize times?
     #time.sleep(0)
-    break;
+                try:
+                    connection = psycopg2.connect(user=creds.PGUSER,
+                                                  password=creds.PGPASSWORD,
+                                                  host=creds.PGHOST,
+                                                  port=creds.PGPORT,
+                                                  database=creds.PGDATABASE)
+                    cursor = connection.cursor()
+
+                    postgres_insert_query = """ INSERT INTO %s (
+                        symbol,
+                        exchange,
+                        year_one_roi_total,
+                        year_two_roi_total,
+                        year_three_roi_total,
+                        year_four_roi_total,
+                        year_eight_roi_total,
+                        year_twelve_roi_total,
+                        year_sixteen_roi_total,
+                        year_twenty_roi_total,
+                        roi_total,
+                        year_two_roi_avg,
+                        year_three_roi_avg,
+                        year_four_roi_avg,
+                        year_eight_roi_avg,
+                        year_twelve_roi_avg,
+                        year_sixteen_roi_avg,
+                        year_twenty_roi_avg,
+                        total_roi_avg,
+                        last_updated,) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+                    record_to_insert = (ex + '_roi', symbol, ex,
+                                        year_one_roi,
+                                        year_two_roi,
+                                        year_three_roi,
+                                        year_four_roi,
+                                        year_eight_roi,
+                                        year_twelve_roi,
+                                        year_sixteen_roi,
+                                        year_twenty_roi,
+                                        total_roi,
+                                        year_two_roi_avg,
+                                        year_three_roi_avg,
+                                        year_four_roi_avg,
+                                        year_eight_roi_avg,
+                                        year_twelve_roi_avg,
+                                        year_sixteen_roi_avg,
+                                        year_twenty_roi_avg,
+                                        avg_roi_total)
+                    cursor.execute(postgres_insert_query, record_to_insert)
+
+                    connection.commit()
+                    count = cursor.rowcount
+                    print (count, "Record inserted successfully into mobile table")
+                    if connection:
+                        cursor.close()
+                        connection.close()
+                        print("PostgreSQL connection is closed")
+
+                except (Exception, psycopg2.Error) as error:
+                    print("Failed to connect to table", error)
+
+    break
