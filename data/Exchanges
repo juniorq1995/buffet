@@ -1,0 +1,66 @@
+US,USA Stocks
+LSE,London Exchange
+V,TSX Venture Exchange
+TO,Toronto Exchange
+CN,Canadian Securities Exchange
+BE,Berlin Exchange
+F,Frankfurt Exchange
+STU,Stuttgart Exchange
+HM,Hamburg Exchange
+HA,Hanover Exchange
+XETRA,XETRA Exchange
+MU,Munich Exchange
+DU,Dusseldorf Exchange
+MI,Borsa Italiana
+VI,Vienna Exchange
+LU,Luxembourg Stock Exchange
+PA,Euronext Paris
+BR,Euronext Brussels
+MC,Madrid Exchange
+LS,Euronext Lisbon
+VX,Swiss Exchange
+AS,Euronext Amsterdam
+SW,SIX Swiss Exchange
+NFN,Nasdaq First North
+ST,Stockholm Exchange
+OL,Oslo Stock Exchange
+IC,Iceland Exchange
+CO,Copenhagen Exchange
+NB,Nasdaq Baltic
+HE,Helsinki Exchange
+IR,Irish Exchange
+HK,Hong Kong Exchange
+TA,Tel Aviv Exchange
+KQ,KOSDAQ
+KO,Korea Stock Exchange
+BUD,Budapest Stock Exchange
+PSE,Philippine Stock Exchange
+WAR,Warsaw Stock Exchange
+SG,Singapore Exchange
+BSE,Bombay Exchange
+NSE,NSE (India)
+SHE,Shenzhen Exchange
+SHG,Shanghai Exchange
+SN,Chilean Stock Exchange
+JSE,Johannesburg Exchange
+BK,Thailand Exchange
+SR,Saudi Arabia Exchange
+KAR,Karachi Stock Exchange
+TSE,Tokyo Stock Exchange
+JK,Jakarta Exchange
+AT,Athens Exchange
+VN,Vietnam Stocks
+KLSE,Kuala Lumpur Exchange
+SA,Sao Paolo Exchange
+BA,Buenos Aires Exchange
+MX,Mexican Exchange
+IL,London IL
+CC,Cryptocurrencies
+COMM,Commodities
+FOREX,FOREX
+TWO	ROCO,Taiwan OTC Exchange
+TW	XTAI,Taiwan Exchange
+INDX,Indices
+BOND,Bond Virtual Exchange
+EUFUND,Europe Fund Virtual Exchange
+RUFUND,Russsia Fund Virtual Exchange

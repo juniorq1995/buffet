@@ -1,0 +1,176 @@
+CREATE TABLE us_roi(
+ symbol_id INT PRIMARY KEY,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ year_one_roi_total NUMERIC,
+ year_two_roi_total NUMERIC,
+ year_two_roi_avg NUMERIC,
+ year_three_roi_total NUMERIC,
+ year_three_roi_avg NUMERIC,
+ year_four_roi_total NUMERIC,
+ year_four_roi_avg NUMERIC,
+ year_eight_roi_total NUMERIC,
+ year_eight_roi_avg NUMERIC,
+ year_twelve_roi_total NUMERIC,
+ year_twelve_roi_avg NUMERIC,
+ year_sixteen_roi_total NUMERIC,
+ year_sixteen_roi_avg NUMERIC,
+ year_twenty_roi_total NUMERIC,
+ year_twenty_roi_avg NUMERIC,
+ roi_total NUMERIC,
+ total_roi_avg NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_one_roi_total(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_total NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_two_roi_total(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_total NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_two_roi_avg(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_avg NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_three_roi_total(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_total NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_three_roi_avg(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_avg NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_four_roi_total(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_total NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_four_roi_avg(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_avg NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_eight_roi_total(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_total NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_eight_roi_avg(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_avg NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_twelve_roi_total(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_total NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_twelve_roi_avg(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_avg NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_sixteen_roi_total(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_total NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_sixteen_roi_avg(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_avg NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_twenty_roi_total(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_total NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE top_year_twenty_roi_avg(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_avg NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE total_roi_avg(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_avg NUMERIC,
+ last_updated TIMESTAMP
+);
+
+CREATE TABLE roi_total(
+ symbol_id INT PRIMARY KEY,
+ rank INT,
+ symbol VARCHAR (10) UNIQUE NOT NULL,
+ exchange VARCHAR (10) NOT NULL,
+ roi_avg NUMERIC,
+ last_updated TIMESTAMP
+);
