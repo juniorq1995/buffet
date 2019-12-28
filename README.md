@@ -45,4 +45,67 @@ Then, this shows all tables in the current schema:
 
 \dt
 
+                try:
+                    connection = psycopg2.connect(user=creds.PGUSER,
+                                                  password=creds.PGPASSWORD,
+                                                  host=creds.PGHOST,
+                                                  port=creds.PGPORT,
+                                                  database=creds.PGDATABASE)
+                    cursor = connection.cursor()
+
+                    postgres_insert_query = """ INSERT INTO %s (
+                        symbol,
+                        exchange,
+                        year_one_roi_total,
+                        year_two_roi_total,
+                        year_three_roi_total,
+                        year_four_roi_total,
+                        year_eight_roi_total,
+                        year_twelve_roi_total,
+                        year_sixteen_roi_total,
+                        year_twenty_roi_total,
+                        roi_total,
+                        year_two_roi_avg,
+                        year_three_roi_avg,
+                        year_four_roi_avg,
+                        year_eight_roi_avg,
+                        year_twelve_roi_avg,
+                        year_sixteen_roi_avg,
+                        year_twenty_roi_avg,
+                        total_roi_avg,
+                        last_updated,) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+                    record_to_insert = (ex + '_roi', symbol, ex,
+                                        year_one_roi,
+                                        year_two_roi_total,
+                                        year_three_roi_total,
+                                        year_four_roi_total,
+                                        year_eight_roi_total,
+                                        year_twelve_roi_total,
+                                        year_sixteen_roi_total,
+                                        year_twenty_roi_total,
+                                        total_roi,
+                                        year_two_roi_avg,
+                                        year_three_roi_avg,
+                                        year_four_roi_avg,
+                                        year_eight_roi_avg,
+                                        year_twelve_roi_avg,
+                                        year_sixteen_roi_avg,
+                                        year_twenty_roi_avg,
+                                        avg_roi_total)
+                    cursor.execute(postgres_insert_query, record_to_insert)
+
+                    connection.commit()
+                    count = cursor.rowcount
+                    print (count, "Record inserted successfully into mobile table")
+                    if connection:
+                        cursor.close()
+                        connection.close()
+                        print("PostgreSQL connection is closed")
+
+                except (Exception, psycopg2.Error) as error:
+                    print("Failed to connect to table", error
+
 sudo -u postgres psql
+
+ERRORS:
+Now getting data for FSKAX.US

@@ -1,5 +1,5 @@
 PGHOST='localhost'
 PGDATABASE='roi'
-PGUSER='junior'
+PGUSER='postgres'
 PGPASSWORD='password'
 PGPORT = '5432'
