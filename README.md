@@ -109,3 +109,20 @@ sudo -u postgres psql
 
 ERRORS:
 Now getting data for FSKAX.US
+Traceback (most recent call last):
+  File "main.py", line 129, in <module>
+    raw_data = get_eod_for_symbol(symbol['Code'], ex)# switch symbol with symbol['Code]
+  File "main.py", line 53, in get_eod_for_symbol
+    return requests.get('https://eodhistoricaldata.com/api/eod/%s.%s?api_token=%s&period=%s&order=%s&fmt=json' % (ticker, exchange, service_key, period, order)).text
+  File "/usr/lib/python2.7/dist-packages/requests/api.py", line 72, in get
+    return request('get', url, params=params, **kwargs)
+  File "/usr/lib/python2.7/dist-packages/requests/api.py", line 58, in request
+    return session.request(method=method, url=url, **kwargs)
+  File "/usr/lib/python2.7/dist-packages/requests/sessions.py", line 520, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/usr/lib/python2.7/dist-packages/requests/sessions.py", line 630, in send
+    r = adapter.send(request, **kwargs)
+  File "/usr/lib/python2.7/dist-packages/requests/adapters.py", line 508, in send
+    raise ConnectionError(e, request=request)
+requests.exceptions.ConnectionError: HTTPSConnectionPool(host='eodhistoricaldata.com', port=443): Max retries exceeded with url: /api/eod/FSKAX.US?api_token=5dc8a4b76bd7b6.91070961&period=d&order=d&fmt=json (Caused by NewConnectionError('<urllib3.connection.VerifiedHTTPSConnection object at 0x7ff29aed1490>: Failed to establish a new connection: [Errno 110] Connection timed out',))
+
