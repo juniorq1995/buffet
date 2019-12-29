@@ -12,9 +12,6 @@ https://eodhistoricaldata.com/api/exchanges/US?api_token={YOUR_API_KEY}&fmt=json
 https://eodhistoricaldata.com/api/eod/AAPL.US?api_token={YOUR_API_KEY}&period=d.
 https://eodhistoricaldata.com/knowledgebase/api-for-historical-data-and-volumes/
 
-#
-Save EOD data in table, 1 for each symbol
-
 # Find total return from each symbol for past 1,2,3,4,8,12,16,20 years
 # And save in different table
 # Later calculate avg return, variance, and STD
@@ -45,84 +42,6 @@ Then, this shows all tables in the current schema:
 
 \dt
 
-                try:
-                    connection = psycopg2.connect(user=creds.PGUSER,
-                                                  password=creds.PGPASSWORD,
-                                                  host=creds.PGHOST,
-                                                  port=creds.PGPORT,
-                                                  database=creds.PGDATABASE)
-                    cursor = connection.cursor()
-
-                    postgres_insert_query = """ INSERT INTO %s (
-                        symbol,
-                        exchange,
-                        year_one_roi_total,
-                        year_two_roi_total,
-                        year_three_roi_total,
-                        year_four_roi_total,
-                        year_eight_roi_total,
-                        year_twelve_roi_total,
-                        year_sixteen_roi_total,
-                        year_twenty_roi_total,
-                        roi_total,
-                        year_two_roi_avg,
-                        year_three_roi_avg,
-                        year_four_roi_avg,
-                        year_eight_roi_avg,
-                        year_twelve_roi_avg,
-                        year_sixteen_roi_avg,
-                        year_twenty_roi_avg,
-                        total_roi_avg,
-                        last_updated,) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
-                    record_to_insert = (ex + '_roi', symbol, ex,
-                                        year_one_roi,
-                                        year_two_roi_total,
-                                        year_three_roi_total,
-                                        year_four_roi_total,
-                                        year_eight_roi_total,
-                                        year_twelve_roi_total,
-                                        year_sixteen_roi_total,
-                                        year_twenty_roi_total,
-                                        total_roi,
-                                        year_two_roi_avg,
-                                        year_three_roi_avg,
-                                        year_four_roi_avg,
-                                        year_eight_roi_avg,
-                                        year_twelve_roi_avg,
-                                        year_sixteen_roi_avg,
-                                        year_twenty_roi_avg,
-                                        avg_roi_total)
-                    cursor.execute(postgres_insert_query, record_to_insert)
-
-                    connection.commit()
-                    count = cursor.rowcount
-                    print (count, "Record inserted successfully into mobile table")
-                    if connection:
-                        cursor.close()
-                        connection.close()
-                        print("PostgreSQL connection is closed")
-
-                except (Exception, psycopg2.Error) as error:
-                    print("Failed to connect to table", error
-
 sudo -u postgres psql
 
-ERRORS:
-Now getting data for FSKAX.US
-Traceback (most recent call last):
-  File "main.py", line 129, in <module>
-    raw_data = get_eod_for_symbol(symbol['Code'], ex)# switch symbol with symbol['Code]
-  File "main.py", line 53, in get_eod_for_symbol
-    return requests.get('https://eodhistoricaldata.com/api/eod/%s.%s?api_token=%s&period=%s&order=%s&fmt=json' % (ticker, exchange, service_key, period, order)).text
-  File "/usr/lib/python2.7/dist-packages/requests/api.py", line 72, in get
-    return request('get', url, params=params, **kwargs)
-  File "/usr/lib/python2.7/dist-packages/requests/api.py", line 58, in request
-    return session.request(method=method, url=url, **kwargs)
-  File "/usr/lib/python2.7/dist-packages/requests/sessions.py", line 520, in request
-    resp = self.send(prep, **send_kwargs)
-  File "/usr/lib/python2.7/dist-packages/requests/sessions.py", line 630, in send
-    r = adapter.send(request, **kwargs)
-  File "/usr/lib/python2.7/dist-packages/requests/adapters.py", line 508, in send
-    raise ConnectionError(e, request=request)
-requests.exceptions.ConnectionError: HTTPSConnectionPool(host='eodhistoricaldata.com', port=443): Max retries exceeded with url: /api/eod/FSKAX.US?api_token=5dc8a4b76bd7b6.91070961&period=d&order=d&fmt=json (Caused by NewConnectionError('<urllib3.connection.VerifiedHTTPSConnection object at 0x7ff29aed1490>: Failed to establish a new connection: [Errno 110] Connection timed out',))
-
+Add in progress meter!!!

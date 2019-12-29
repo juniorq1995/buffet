@@ -10,6 +10,7 @@ import pandas as pd
 import example_psql as creds
 import pandas.io.sql as psql
 import requests
+from requests.exceptions import ConnectionError
 import time
 import Constants
 from datetime import date, datetime, timedelta
@@ -40,6 +41,17 @@ ex_cols = [
 ]
 service_key = Constants.EOD_API_TOKEN
 exchanges = ['US']
+
+def progress(count, total, status=''):
+    bar_len = 100
+    filled_len = int(round(bar_len * count / float(total)))
+
+    percents = round(100.0 * count / float(total), 1)
+    bar = '=' * filled_len + '-' * (bar_len - filled_len)
+
+    sys.stdout.write('[%s] %s%s ...%s\r' % (bar, percents, '%', status))
+    sys.stdout.flush()
+
 def get_nearest_day(missing_day, idx):
     while missing_day not in idx:
         missing_day = missing_day + timedelta(days=1)
@@ -56,7 +68,6 @@ def connect_to_db():
     conn_string = "host=" + creds.PGHOST + " port=" + "5432" + " dbname=" + creds.PGDATABASE + " user=" + creds.PGUSER \
                   + " password=" + creds.PGPASSWORD
     conn = psycopg2.connect(conn_string)
-    print("Connected!")
 
 def get_total_roi_for_years(years_back, pddf):
     latest = pddf.first_valid_index()
@@ -116,24 +127,43 @@ def get_avg_roi_total(pddf):
     return total / count
 
 while True:
-    now = datetime.now()
+    print('Beginning Data Collection')
+    now = datetime.now() # Change to a select ime later
     start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     # update databases
-    if now.weekday() <= 4 and now.time() > start.time():
+    if now.weekday() <= 6 and now.time() > start.time(): # Change weekday back to 4
         for ex in exchanges:
             symbols_json = get_all_exchange_symbols(ex)
             symbols_dict = json.loads(symbols_json)  # obj now contains a dict of the data
             ex_df = pd.DataFrame(columns=ex_cols)
+            print('Accessing info for %s Exchange' % ex)
+            total = len(symbols_dict)
+            i = 0
             for symbol in symbols_dict:
-                print('Now getting data for %s.%s' % (symbol['Code'], ex))# switch symbol with symbol['Code]
-                raw_data = get_eod_for_symbol(symbol['Code'], ex)# switch symbol with symbol['Code]
-                formatted_data = json.loads(raw_data)
+                i+=1
+                #print('Now getting data for %s.%s' % (symbol, ex))# switch symbol with symbol['Code]
+                progress(i, total, status='Now getting data for %s.%s' % (symbol['Code'], ex))
+                try:
+                    raw_data = get_eod_for_symbol(symbol['Code'], ex)# switch symbol with symbol['Code]
+                except ConnectionError:
+                    print('Connection Error: Going to sleep for 30 seconds before resuming')
+                    time.sleep(15)
+                    raw_data = get_eod_for_symbol(symbol['Code'], ex)
+                try:
+                    formatted_data = json.loads(raw_data)
+                except ValueError:
+                    print('Formatting Error')
+                    time.sleep(15)
+                    # recall API
+                    raw_data = get_eod_for_symbol(symbol['Code'], ex)  # switch symbol with symbol['Code]
+                    formatted_data = json.loads(raw_data)
+
                 if len(formatted_data) > 0:
                     df = pd.DataFrame(formatted_data)
                     df['date'] = pd.to_datetime(df['date'])
                     df = df.set_index('date')['close']
 
-                    print('Calculating roi...')
+                    progress(i, total, status='Calculating Data')
                     year_one_roi_total = get_total_roi_for_years(1, df)
                     year_two_roi_total = get_total_roi_for_years(2, df)
                     year_three_roi_total = get_total_roi_for_years(3, df)
@@ -152,7 +182,6 @@ while True:
                     year_sixteen_roi_avg = get_avg_roi_for_years(16, df)
                     year_twenty_roi_avg = get_avg_roi_for_years(20, df)
                     total_roi_avg = get_avg_roi_total(df)
-                    print('Adding row to DataFrame')
                     ex_df = ex_df.append(
                         {
                             'symbol':symbol,
@@ -177,11 +206,9 @@ while True:
                             'last_updated': datetime.utcnow(),
                         }, ignore_index=True
                     )
-                    print('Completed appending row!')
                 else:
                     print('Data is empty')
 
-        print('Writing to DB')
         engine = create_engine('postgresql://' + creds.PGUSER + ':' + creds.PGPASSWORD + '@'+creds.PGHOST + ':'+ creds.PGPORT + '/' + creds.PGDATABASE)
         ex_df.to_sql(ex + '_roi', engine)
 
