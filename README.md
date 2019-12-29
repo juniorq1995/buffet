@@ -44,4 +44,4 @@ Then, this shows all tables in the current schema:
 
 sudo -u postgres psql
 
-Add in progress meter!!!
+Add in timer!!!
