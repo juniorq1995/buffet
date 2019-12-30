@@ -16,6 +16,7 @@ import Constants
 from datetime import date, datetime, timedelta
 import json
 from sqlalchemy import create_engine
+import timeit
 
 ex_cols = [
     'symbol',
@@ -69,46 +70,53 @@ def connect_to_db():
                   + " password=" + creds.PGPASSWORD
     conn = psycopg2.connect(conn_string)
 
+def avg_helper(roi_list, year):
+    sum = 0
+    count = 0
+    while 0 < year <= len(roi_list):
+        year-= 1
+        if roi_list[year] is not None:
+            sum += roi_list[year]
+            count += 1
+    if count == 0: return None
+    return sum / count
+
 def get_total_roi_for_years(years_back, pddf):
     latest = pddf.first_valid_index()
     latest_price = pddf[latest]
-    years_back_date = latest - timedelta(days=years_back*365)
-    if years_back_date not in pddf.index:
-        years_back_date = get_nearest_day(years_back_date, df.index)
-    if years_back_date < pddf.last_valid_index():
-        return None
-    years_back_price = pddf[years_back_date]
-    return (latest_price - years_back_price) / years_back_price
+    return_roi = []
+    for year in years_back:
+        years_back_date = latest - timedelta(days=year*365)
+        if years_back_date not in pddf.index:
+            years_back_date = get_nearest_day(years_back_date, df.index)
+        if years_back_date < pddf.last_valid_index() or pddf[years_back_date] == 0:
+            return_roi.append(None)
+        else:
+            years_back_price = pddf[years_back_date]
+            return_roi.append((latest_price - years_back_price) / years_back_price)
+    return return_roi
 
 def get_total_roi(pddf):
     latest = pddf.first_valid_index()
     latest_price = pddf[latest]
     years_back_price = pddf[pddf.last_valid_index()]
+    if years_back_price == 0: return None
     return (latest_price - years_back_price) / years_back_price
 
 def get_avg_roi_for_years(years_back, pddf):
-    total = 0
-    count = 0
-    latest = pddf.first_valid_index()
-    while years_back >= count:
-        latest_date = latest - timedelta(days=count * 365)
-        years_back_date = latest - timedelta(days=(count+1) * 365)
-        if years_back_date not in pddf.index:
-            years_back_date = get_nearest_day(years_back_date, pddf.index)
-        if latest_date not in pddf.index:
-            latest_date = get_nearest_day(latest_date, pddf.index)
-        if years_back_date < pddf.last_valid_index():
-            return None
-        latest_price = pddf[latest_date]
-        years_back_price = pddf[years_back_date]
-        roi = (latest_price - years_back_price) / years_back_price
-        total += roi
-        count+=1
-    return total / years_back
+    every_roi = get_roi_for_every_year(pddf)
+    if len(every_roi) == 0: return [None] * 8
+    avg_roi_list = []
+    for year in years_back:
+       avg_roi_list.append(avg_helper(every_roi, year))
 
-def get_avg_roi_total(pddf):
-    total = 0
+    # Total avg roi for life of the company
+    avg_roi_list.append(avg_helper(every_roi, len(every_roi)))
+    return avg_roi_list
+
+def get_roi_for_every_year(pddf):
     count = 1
+    every_roi = []
     latest = pddf.first_valid_index()
     years_back_date = latest - timedelta(days=count * 365)
     first_entry = pddf.last_valid_index()
@@ -121,93 +129,81 @@ def get_avg_roi_total(pddf):
             latest_date = get_nearest_day(latest_date, pddf.index)
         latest_price = pddf[latest_date]
         years_back_price = pddf[years_back_date]
-        roi = (latest_price - years_back_price) / years_back_price
-        total += roi
+        if years_back_price == 0 : every_roi.append(None) # ignore this year when calculating avg
+        else:
+            every_roi.append((latest_price - years_back_price) / years_back_price)
         count += 1
-    return total / count
+    return every_roi
 
 while True:
+    start_time = timeit.default_timer()
     print('Beginning Data Collection')
     now = datetime.now() # Change to a select ime later
     start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     # update databases
-    if now.weekday() <= 6 and now.time() > start.time(): # Change weekday back to 4
-        for ex in exchanges:
-            symbols_json = get_all_exchange_symbols(ex)
-            symbols_dict = json.loads(symbols_json)  # obj now contains a dict of the data
-            ex_df = pd.DataFrame(columns=ex_cols)
-            print('Accessing info for %s Exchange' % ex)
-            total = len(symbols_dict)
-            i = 0
-            for symbol in symbols_dict:
-                i+=1
-                #print('Now getting data for %s.%s' % (symbol, ex))# switch symbol with symbol['Code]
-                progress(i, total, status='Now getting data for %s.%s' % (symbol['Code'], ex))
-                try:
-                    raw_data = get_eod_for_symbol(symbol['Code'], ex)# switch symbol with symbol['Code]
-                except ConnectionError:
-                    print('Connection Error: Going to sleep for 30 seconds before resuming')
-                    time.sleep(15)
-                    raw_data = get_eod_for_symbol(symbol['Code'], ex)
-                try:
-                    formatted_data = json.loads(raw_data)
-                except ValueError:
-                    print('Formatting Error')
-                    time.sleep(15)
-                    # recall API
-                    raw_data = get_eod_for_symbol(symbol['Code'], ex)  # switch symbol with symbol['Code]
-                    formatted_data = json.loads(raw_data)
+    ex_df = pd.DataFrame(columns=ex_cols)
+    for ex in exchanges:
+        print('Accessing info for %s Exchange' % ex)
+        symbols_json = get_all_exchange_symbols(ex)
+        symbols_dict = json.loads(symbols_json)  # obj now contains a dict of the data
+        total_length = len(symbols_dict)
+        i = 0
+        for symbol in symbols_dict:
+            i+=1
+            progress(i, total_length, status='Retrieving Data for %s.%s. %s sec Elapsed. Estimated %s sec left' % (symbol['Code'], ex, round(timeit.default_timer() - start_time,2),
+                                                                                                      round((timeit.default_timer() - start_time) * (total_length - i) / i, 2)))
+            try:
+                raw_data = get_eod_for_symbol(symbol['Code'], ex)# switch symbol with symbol['Code]
+            except ConnectionError:
+                print('Connection Error with %s.%s: Going to sleep for 30 seconds before resuming' % (symbol['Code'], ex))
+                time.sleep(15)
+                raw_data = get_eod_for_symbol(symbol['Code'], ex)
+            try:
+                formatted_data = json.loads(raw_data)
+            except ValueError:
+                print('Formatting Error with %s.%s' % (symbol['Code'], ex))
+                time.sleep(15)
+                # recall API
+                raw_data = get_eod_for_symbol(symbol['Code'], ex)  # switch symbol with symbol['Code]
+                formatted_data = json.loads(raw_data)
 
-                if len(formatted_data) > 0:
-                    df = pd.DataFrame(formatted_data)
-                    df['date'] = pd.to_datetime(df['date'])
-                    df = df.set_index('date')['close']
+            if len(formatted_data) > 0:
+                df = pd.DataFrame(formatted_data)
+                df['date'] = pd.to_datetime(df['date'])
+                df = df.set_index('date')['close']
 
-                    progress(i, total, status='Calculating Data')
-                    year_one_roi_total = get_total_roi_for_years(1, df)
-                    year_two_roi_total = get_total_roi_for_years(2, df)
-                    year_three_roi_total = get_total_roi_for_years(3, df)
-                    year_four_roi_total = get_total_roi_for_years(4, df)
-                    year_eight_roi_total = get_total_roi_for_years(8, df)
-                    year_twelve_roi_total = get_total_roi_for_years(12, df)
-                    year_sixteen_roi_total = get_total_roi_for_years(16, df)
-                    year_twenty_roi_total = get_total_roi_for_years(20, df)
-                    roi_total = get_total_roi(df)
+                progress(i, total_length, status='Calculating Data for %s.%s. %s sec Elapsed. Estimated %s sec left' % (symbol['Code'], ex, round(timeit.default_timer() - start_time,2),
+                                                                                                      round((timeit.default_timer() - start_time) * (total_length - i) / i, 2)))
+                year_roi_totals = get_total_roi_for_years([1,2,3,4,8,12,16,20], df)
+                roi_total = get_total_roi(df)
 
-                    year_two_roi_avg = get_avg_roi_for_years(2, df)
-                    year_three_roi_avg = get_avg_roi_for_years(3, df)
-                    year_four_roi_avg = get_avg_roi_for_years(4, df)
-                    year_eight_roi_avg = get_avg_roi_for_years(8, df)
-                    year_twelve_roi_avg = get_avg_roi_for_years(12, df)
-                    year_sixteen_roi_avg = get_avg_roi_for_years(16, df)
-                    year_twenty_roi_avg = get_avg_roi_for_years(20, df)
-                    total_roi_avg = get_avg_roi_total(df)
-                    ex_df = ex_df.append(
-                        {
-                            'symbol':symbol,
-                            'exchange': ex,
-                            'year_one_roi_total': year_one_roi_total,
-                            'year_two_roi_total': year_two_roi_total,
-                            'year_three_roi_total': year_three_roi_total,
-                            'year_four_roi_total': year_four_roi_total,
-                            'year_eight_roi_total': year_eight_roi_total,
-                            'year_twelve_roi_total': year_twelve_roi_total,
-                            'year_sixteen_roi_total': year_sixteen_roi_total,
-                            'year_twenty_roi_total': year_twenty_roi_total,
-                            'roi_total': roi_total,
-                            'year_two_roi_avg': year_two_roi_avg,
-                            'year_three_roi_avg': year_three_roi_avg,
-                            'year_four_roi_avg': year_four_roi_avg,
-                            'year_eight_roi_avg': year_eight_roi_avg,
-                            'year_twelve_roi_avg': year_twelve_roi_avg,
-                            'year_sixteen_roi_avg': year_sixteen_roi_avg,
-                            'year_twenty_roi_avg': year_twenty_roi_avg,
-                            'total_roi_avg': total_roi_avg,
-                            'last_updated': datetime.utcnow(),
-                        }, ignore_index=True
-                    )
-                else:
-                    print('Data is empty')
+                total_roi_avg = get_avg_roi_for_years([2,3,4,8,12,16,20], df)
+                ex_df = ex_df.append(
+                    {
+                        'symbol':symbol['Code'],
+                        'exchange': ex,
+                        'year_one_roi_total': year_roi_totals[0],
+                        'year_two_roi_total': year_roi_totals[1],
+                        'year_three_roi_total': year_roi_totals[2],
+                        'year_four_roi_total': year_roi_totals[3],
+                        'year_eight_roi_total': year_roi_totals[4],
+                        'year_twelve_roi_total': year_roi_totals[5],
+                        'year_sixteen_roi_total': year_roi_totals[6],
+                        'year_twenty_roi_total': year_roi_totals[7],
+                        'roi_total': roi_total,
+                        'year_two_roi_avg': total_roi_avg[0],
+                        'year_three_roi_avg': total_roi_avg[1],
+                        'year_four_roi_avg': total_roi_avg[2],
+                        'year_eight_roi_avg': total_roi_avg[3],
+                        'year_twelve_roi_avg': total_roi_avg[4],
+                        'year_sixteen_roi_avg': total_roi_avg[5],
+                        'year_twenty_roi_avg': total_roi_avg[6],
+                        'total_roi_avg': total_roi_avg[7],
+                        'last_updated': datetime.utcnow(),
+                    }, ignore_index=True
+                )
+            else:
+                print('Data is empty for %s.%s' % (symbol['Code'], ex))
 
         engine = create_engine('postgresql://' + creds.PGUSER + ':' + creds.PGPASSWORD + '@'+creds.PGHOST + ':'+ creds.PGPORT + '/' + creds.PGDATABASE)
         ex_df.to_sql(ex + '_roi', engine)
