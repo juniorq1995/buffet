@@ -150,7 +150,7 @@ while True:
         i = 0
         for symbol in symbols_dict:
             i+=1
-            progress(i, total_length, status='Retrieving Data for %s.%s. %s sec Elapsed. Estimated %s sec left' % (symbol['Code'], ex, round(timeit.default_timer() - start_time,2),
+            progress(i, total_length, status='Retrieving Data for %s.%s. %s sec Elapsed. Estimated %s sec' % (symbol['Code'], ex, round(timeit.default_timer() - start_time,2),
                                                                                                       round((timeit.default_timer() - start_time) * (total_length - i) / i, 2)))
             try:
                 raw_data = get_eod_for_symbol(symbol['Code'], ex)# switch symbol with symbol['Code]
