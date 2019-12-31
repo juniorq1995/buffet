@@ -44,4 +44,5 @@ Then, this shows all tables in the current schema:
 
 sudo -u postgres psql
 
-Add in timer!!!
+US Stock exchange took 33,896 seconds
+LSE took

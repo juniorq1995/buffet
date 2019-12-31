@@ -41,7 +41,7 @@ ex_cols = [
     'last_updated',
 ]
 service_key = Constants.EOD_API_TOKEN
-exchanges = ['US']
+exchanges = ['LSE']
 
 def progress(count, total, status=''):
     bar_len = 100
