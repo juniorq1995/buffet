@@ -44,5 +44,24 @@ Then, this shows all tables in the current schema:
 
 sudo -u postgres psql
 
-US Stock exchange took 33,896 seconds
-LSE took ~ 2,000 seconds
+We reset the daily limit on midnight GMT time. However, we do not reset the counter itself,
+the counter will be reset on any API request right after the midnight GMT time.
+Before that the counter shows the number of API requests on the last active day.
+
+US Stock exchange took 33,896.53 seconds
+LSE took 2,075.29 seconds
+V took 783.46 seconds
+TO took 1,823.42 seconds
+CN took 1,994.8 seconds
+BE took 4,844.65 seconds
+F took 4,229.47 seconds
+STU took 6,304.44 seconds
+HM took 6,720.42 seconds
+HA took 6,724.99 seconds
+XETRA took 8,155.3 seconds
+MU took 9,839.93 seconds
+DU took 10,7878.95 seconds
+
+
+
+CONVERT TO PYTHON 3!!!
