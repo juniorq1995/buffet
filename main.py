@@ -49,27 +49,12 @@ exchanges = Constants.EXCHANGES
 API_DAILY_LIMIT = 100000
 
 
-def check_in_later():
+def check_in_later(stop):
     # Check in after an hour
     # Ideally sleep until the next day when there are more api requests avail
     print('I am getting tired, see you after my nap')
-    time_before_midnight = program_stop_time - datetime.utcnow()
+    time_before_midnight = stop - datetime.utcnow()
     time.sleep(time_before_midnight.seconds + 10)
-
-
-def within_api_limit(count, stop):
-    if stop <= datetime.utcnow() and count < API_DAILY_LIMIT:
-        # Midnight tonight!
-        print('A new day, a clean slate')
-        stop += timedelta(days=1)
-        count = 0
-
-    if count < API_DAILY_LIMIT:
-        count += 1
-        return True
-    else:
-        print('Whoa there, you reached your api limit for today...')
-        return False
 
 
 def progress(count, total, status=''):
@@ -89,22 +74,17 @@ def get_nearest_day(missing_day, idx):
     return missing_day
 
 
-def get_all_exchange_symbols(exchange, count, stop):
+def get_all_exchange_symbols(exchange):
     # API return format is:
     # {"Code":"XXX", "Name": "X", "Country": "USA", "Exchange": "NASDAQ", "Currency": "USD", "Type": "Common Stock"},
-    if within_api_limit(count, stop):
         return requests.get(
             'https://eodhistoricaldata.com/api/exchanges/%s?api_token=%s&fmt=json' % (exchange, service_key)).text
-    else:
-        check_in_later()
 
 
-def get_eod_for_symbol(ticker, exchange, count, stop, period='d', order='d'):
-    if within_api_limit(count, stop):
+
+def get_eod_for_symbol(ticker, exchange, period='d', order='d'):
         return requests.get('https://eodhistoricaldata.com/api/eod/%s.%s?api_token=%s&period=%s&order=%s&fmt=json' % (
             ticker, exchange, service_key, period, order)).text
-    else:
-        check_in_later()
 
 
 def avg_helper(roi_list, year):
@@ -196,9 +176,10 @@ def drop_table(table_name):
 
 def main():
     api_count = 0
-    tomorrow = datetime.utcnow() + timedelta(days=1)
-    program_stop_time = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0)
     while True:
+        tomorrow = datetime.utcnow() + timedelta(days=1)
+        program_stop_time = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0)
+
         if True:  # 0 < datetime.utcnow().isoweekday() < 6:
             # Midnight tonight!
             print('Beginning Data Collection')
@@ -207,7 +188,10 @@ def main():
                 start_time = timeit.default_timer()
                 ex_df = pd.DataFrame(columns=ex_cols)
                 print('Accessing info for %s Exchange' % ex)
-                symbols_json = get_all_exchange_symbols(ex, api_count, program_stop_time)
+                if api_count < API_DAILY_LIMIT:
+                    symbols_json = get_all_exchange_symbols(ex)
+                else:
+                    check_in_later(program_stop_time)
                 symbols_dict = json.loads(symbols_json)  # obj now contains a dict of the data
                 total_length = len(symbols_dict)
                 i = 0
@@ -217,22 +201,29 @@ def main():
                         symbol['Code'], ex, round(timeit.default_timer() - start_time, 2),
                         round((timeit.default_timer() - start_time) * (total_length - i) / i, 2)))
                     try:
-                        raw_data = get_eod_for_symbol(symbol['Code'], ex, count=api_count,
-                                                      stop=program_stop_time)  # switch symbol with symbol['Code]
+                        if api_count < API_DAILY_LIMIT:
+                            raw_data = get_eod_for_symbol(symbol['Code'], ex)
+                        else:
+                            check_in_later(program_stop_time)
                     except ConnectionError:
                         print(
                             'Connection Error with %s.%s: Going to sleep for 30 seconds before resuming' % (
                                 symbol['Code'], ex))
                         time.sleep(15)
-                        raw_data = get_eod_for_symbol(symbol['Code'], ex)
+                        if api_count < API_DAILY_LIMIT:
+                            raw_data = get_eod_for_symbol(symbol['Code'], ex)
+                        else:
+                            check_in_later(program_stop_time)
                     try:
                         formatted_data = json.loads(raw_data)
                     except ValueError:
                         print('Formatting Error with %s.%s' % (symbol['Code'], ex))
                         time.sleep(15)
                         # recall API
-                        raw_data = get_eod_for_symbol(symbol['Code'], ex, count=api_count,
-                                                      stop=program_stop_time)  # switch symbol with symbol['Code]
+                        if api_count < API_DAILY_LIMIT:
+                            raw_data = get_eod_for_symbol(symbol['Code'], ex)
+                        else:
+                            check_in_later(program_stop_time)
                         formatted_data = json.loads(raw_data)
 
                     if len(formatted_data) > 0:
@@ -251,6 +242,8 @@ def main():
                         ex_df = ex_df.append(
                             {
                                 'symbol': symbol['Code'],
+                                'name': symbol['Name'],
+                                'country': symbol['Country'],
                                 'exchange': ex,
                                 'year_one_roi_total': year_roi_totals[0],
                                 'year_two_roi_total': year_roi_totals[1],
