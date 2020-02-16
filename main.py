@@ -4,16 +4,14 @@
 # company symbol,ROI per year starting from recent, going back 15 years at the most
 # company symbol, ROI past 15 years, ROI past 10 years, ROI past 5 years
 # import psycopg2
-import sys, os
-import numpy as np
+import sys
 import pandas as pd
 import example_psql as creds
-import pandas.io.sql as psql
 import requests
 from requests.exceptions import ConnectionError
 import time
 import Constants
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 import json
 import logging
 from sqlalchemy import MetaData
@@ -21,43 +19,61 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 import timeit
 
-ex_cols = [
-    'symbol',
-    'exchange',
-    'year_one_roi_total',
-    'year_two_roi_total',
-    'year_three_roi_total',
-    'year_four_roi_total',
-    'year_eight_roi_total',
-    'year_twelve_roi_total',
-    'year_sixteen_roi_total',
-    'year_twenty_roi_total',
-    'roi_total',
-    'year_two_roi_avg',
-    'year_three_roi_avg',
-    'year_four_roi_avg',
-    'year_eight_roi_avg',
-    'year_twelve_roi_avg',
-    'year_sixteen_roi_avg',
-    'year_twenty_roi_avg',
-    'total_roi_avg',
-    'last_updated',
-]
-
 service_key = Constants.EOD_API_TOKEN
 exchanges = Constants.EXCHANGES
-API_DAILY_LIMIT = 100000
+exchange_cols = Constants.EX_COLS
+API_DAILY_LIMIT = 100000  # 100,000
+API_COUNT = 0  # Global Counter Variable
 
 
-def check_in_later(stop):
+def hibernate(num_days):
+    """
+    Puts processes to sleep for X days
+
+    :param num_days: Number of days to sleep
+    :type num_days: Integer
+    :return: No Return
+    """
+
+    print('It is the weekend, see ya Monday fools!')
+    wake_time = datetime.utcnow() + timedelta(days=num_days)
+    sleep_time = datetime(wake_time.year, wake_time.month, wake_time.day, 12, 0,
+                          0) - datetime.utcnow()
+    time.sleep(sleep_time.seconds)
+
+
+def sleep_api_limit_reset():
+    """
+    A simple function that puts the system to sleep until UTC midnight when the
+    API limit is reset
+    :return:
+    """
+
     # Check in after an hour
     # Ideally sleep until the next day when there are more api requests avail
     print('I am getting tired, see you after my nap')
-    time_before_midnight = stop - datetime.utcnow()
+    global API_COUNT
+    API_COUNT = 0
+    tomorrow = datetime.utcnow() + timedelta(days=1)
+    program_stop_time = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0)
+    time_before_midnight = program_stop_time - datetime.utcnow()
     time.sleep(time_before_midnight.seconds + 10)
 
 
 def progress(count, total, status=''):
+    """
+    Calculatues what percentage of the current task ahs been completed and
+    outputs it in a progress bar to stdout
+
+    :param count: Which company the program is currently on
+    :type count: Integer
+    :param total: The total number of companies for an exchange
+    :type total: Integer
+    :param status: string progress bar
+    :type status: String
+    :return: No return, writes status to stdout
+    """
+
     bar_len = 100
     filled_len = int(round(bar_len * count / float(total)))
 
@@ -69,25 +85,65 @@ def progress(count, total, status=''):
 
 
 def get_nearest_day(missing_day, idx):
+    """
+
+
+    :param missing_day: datetime.datetime
+    :param idx: pandas.core.indexes.datetimes.DatetimeIndex
+    :return:
+    """
+
     while missing_day not in idx:
         missing_day = missing_day + timedelta(days=1)
     return missing_day
 
 
 def get_all_exchange_symbols(exchange):
+    """
+
+    :param exchange:
+    :return:
+    """
+
     # API return format is:
     # {"Code":"XXX", "Name": "X", "Country": "USA", "Exchange": "NASDAQ", "Currency": "USD", "Type": "Common Stock"},
-        return requests.get(
-            'https://eodhistoricaldata.com/api/exchanges/%s?api_token=%s&fmt=json' % (exchange, service_key)).text
-
+    global API_COUNT
+    if API_COUNT > API_DAILY_LIMIT:
+        sleep_api_limit_reset()
+    API_COUNT += 1
+    return requests.get(
+        'https://eodhistoricaldata.com/api/exchanges/%s?api_token=%s&fmt=json' % (exchange, service_key)).text
 
 
 def get_eod_for_symbol(ticker, exchange, period='d', order='d'):
-        return requests.get('https://eodhistoricaldata.com/api/eod/%s.%s?api_token=%s&period=%s&order=%s&fmt=json' % (
-            ticker, exchange, service_key, period, order)).text
+    """
+    Makes an API call for all EOD data for a specified company in a
+    specified exchange
+
+    :param ticker: Company ticker symbol
+    :param exchange: Securities Exchange symbol
+    :param period:
+    :param order:
+    :return:
+    """
+    global API_COUNT
+    if API_COUNT > API_DAILY_LIMIT:
+        sleep_api_limit_reset()
+    API_COUNT += 1
+    return requests.get('https://eodhistoricaldata.com/api/eod/%s.%s?api_token=%s&period=%s&order=%s&fmt=json' % (
+        ticker, exchange, service_key, period, order)).text
 
 
 def avg_helper(roi_list, year):
+    """
+
+    :param roi_list: Dictionary of ROI for each year
+    :type roi_list: Dict
+    :param year: Number of years to go back in EOD data
+    :type year: Integer
+    :return:
+    """
+
     sum = 0
     count = 0
     while 0 < year <= len(roi_list):
@@ -95,11 +151,17 @@ def avg_helper(roi_list, year):
         if roi_list[year] is not None:
             sum += roi_list[year]
             count += 1
-    if count == 0: return -1
-    return sum / count
+    return -1 if count == 0 else sum/count
 
 
 def get_total_roi_for_years(years_back, pddf):
+    """
+
+    :param years_back:
+    :param pddf:
+    :return:
+    """
+
     latest = pddf.first_valid_index()
     latest_price = pddf[latest]
     return_roi = []
@@ -116,6 +178,12 @@ def get_total_roi_for_years(years_back, pddf):
 
 
 def get_total_roi(pddf):
+    """
+
+    :param pddf:
+    :return:
+    """
+
     latest = pddf.first_valid_index()
     latest_price = pddf[latest]
     years_back_price = pddf[pddf.last_valid_index()]
@@ -124,6 +192,19 @@ def get_total_roi(pddf):
 
 
 def get_avg_roi_for_years(years_back, pddf):
+    """
+    Get the average roi for a range of years
+
+    :param years_back: list of years to get avg for
+    :type years_back: list of Integers
+    :param pddf: dataframe holding EOD data
+    :type pddf: Pandas Dataframe
+    :return:
+    """
+
+    # This can be dramatically sped up using the "window" method
+    # Simply read the entry from the db, remove the last day and add in new day
+    # Need to store dates of the time windows (begin, end)
     every_roi = get_roi_for_every_year(pddf)
     if len(every_roi) == 0: return [-1] * 8
     avg_roi_list = []
@@ -136,6 +217,12 @@ def get_avg_roi_for_years(years_back, pddf):
 
 
 def get_roi_for_every_year(pddf):
+    """
+
+    :param pddf:
+    :return:
+    """
+
     count = 1
     every_roi = []
     latest = pddf.first_valid_index()
@@ -157,13 +244,27 @@ def get_roi_for_every_year(pddf):
         count += 1
     return every_roi
 
+
 def add_table(table_name, pd):
+    """
+
+    :param table_name:
+    :param pd:
+    :return:
+    """
+
     engine = create_engine(
         'postgresql://' + creds.PGUSER + ':' + creds.PGPASSWORD + '@' + creds.PGHOST + ':' + creds.PGPORT + '/' + creds.PGDATABASE)
     pd.to_sql(table_name, engine)
 
 
 def drop_table(table_name):
+    """
+
+    :param table_name:
+    :return:
+    """
+
     engine = create_engine(
         'postgresql://' + creds.PGUSER + ':' + creds.PGPASSWORD + '@' + creds.PGHOST + ':' + creds.PGPORT + '/' + creds.PGDATABASE)
     base = declarative_base()
@@ -174,109 +275,158 @@ def drop_table(table_name):
         base.metadata.drop_all(engine, [table], checkfirst=True)
 
 
-def main():
-    api_count = 0
+def get_formatted_eod_data(symbol, exchange):
+    """
+    Retrieve and format eod data for a securiy in an exchange
+    :param symbol:
+    :param exchange:
+    :return:
+    """
+
+    try:
+        raw_data = get_eod_for_symbol(symbol['Code'], exchange)
+
+    except ConnectionError:
+        print(
+            'Connection Error with %s.%s: Going to sleep for 10 seconds before resuming' % (
+                symbol['Code'], exchange))
+        time.sleep(10)
+        raw_data = get_eod_for_symbol(symbol['Code'], exchange)
+    try:
+        formatted_data = json.loads(raw_data)
+    except ValueError:
+        print('Formatting Error with %s.%s' % (symbol['Code'], exchange))
+        time.sleep(10)
+        # recall API
+        raw_data = get_eod_for_symbol(symbol['Code'], exchange)
+        formatted_data = json.loads(raw_data)
+    return formatted_data
+
+
+def create_metadata_table_entry(symbol, ex, year_roi_totals, roi_total, total_roi_avg):
+    """
+
+    :param symbol:
+    :param ex:
+    :param year_roi_totals:
+    :param roi_total:
+    :param total_roi_avg:
+    :return:
+    """
+    return {
+        'symbol': symbol['Code'],
+        'name': symbol['Name'],
+        'country': symbol['Country'],
+        'exchange': ex,
+        'year_one_roi_total': year_roi_totals[0],
+        'year_two_roi_total': year_roi_totals[1],
+        'year_three_roi_total': year_roi_totals[2],
+        'year_four_roi_total': year_roi_totals[3],
+        'year_eight_roi_total': year_roi_totals[4],
+        'year_twelve_roi_total': year_roi_totals[5],
+        'year_sixteen_roi_total': year_roi_totals[6],
+        'year_twenty_roi_total': year_roi_totals[7],
+        'roi_total': roi_total,
+        'year_two_roi_avg': total_roi_avg[0],
+        'year_three_roi_avg': total_roi_avg[1],
+        'year_four_roi_avg': total_roi_avg[2],
+        'year_eight_roi_avg': total_roi_avg[3],
+        'year_twelve_roi_avg': total_roi_avg[4],
+        'year_sixteen_roi_avg': total_roi_avg[5],
+        'year_twenty_roi_avg': total_roi_avg[6],
+        'total_roi_avg': total_roi_avg[7],
+        'last_updated': datetime.utcnow(),
+    }
+
+
+def create_formatted_dict(data):
+    """
+
+    :param data:
+    :return: Formatted Dictionary
+    """
+    df = pd.DataFrame(data)
+    df['date'] = pd.to_datetime(df['date'])
+    return df.set_index('date')['close']
+
+
+def get_symbol_metadata(symbol, ex, count, start_time, total_length):
+    """
+
+    :param total_length:
+    :param ex:
+    :param symbol:
+    :param count:
+    :param start_time:
+    :return:
+    """
+    # Start the progress bar
+    progress(count, total_length, status='Retrieving Data for %s.%s. %s sec Elapsed. Estimated %s sec' % (
+        symbol['Code'], ex, round(timeit.default_timer() - start_time, 2),
+        round((timeit.default_timer() - start_time) * (total_length - count) / count, 2)))
+
+    formatted_data = get_formatted_eod_data(symbol, ex)
+    row = {}
+    if len(formatted_data) > 0:
+        df = create_formatted_dict(formatted_data)
+
+        # Update the progress bar
+        progress(count, total_length,
+                 status='Calculating Data for %s.%s. %s sec Elapsed. Estimated %s sec left' % (
+                     symbol['Code'], ex, round(timeit.default_timer() - start_time, 2),
+                     round((timeit.default_timer() - start_time) * (total_length - count) / count, 2)))
+        year_roi_totals = get_total_roi_for_years([1, 2, 3, 4, 8, 12, 16, 20], df)
+        roi_total = get_total_roi(df)
+
+        total_roi_avg = get_avg_roi_for_years([2, 3, 4, 8, 12, 16, 20], df)
+
+        row = create_metadata_table_entry(symbol, ex, year_roi_totals, roi_total, total_roi_avg)
+    else:
+        print('Data is empty for %s.%s' % (symbol['Code'], ex))
+
+    return row
+
+
+def calculate_security_metadata(exchange):
+    """
+    Collects and calculates metadata about securities in database each day
+
+    :return: New metadata entry for each securities exchange
+    """
+
+    start_time = timeit.default_timer()
+    ex_df = pd.DataFrame(columns=exchange_cols)
+    print('Accessing info for %s Exchange' % exchange)
+    symbols_json = get_all_exchange_symbols(exchange)
+    symbols_dict = json.loads(symbols_json)  # obj now contains a dict of the data
+    total_length = len(symbols_dict)
+    count = 0
+    for symbol in symbols_dict:
+        count += 1
+        ex_df.append(get_symbol_metadata(symbol, exchange, count, start_time, total_length),
+                     ignore_index=True)
+    return ex_df
+
+
+def update_all_metadata_tables():
+    """
+    Retrieves the metadata for all security exchanges and writes it
+    to their respective tables
+    :return:
+    """
+
+    print('Beginning Data Collection')
+    # update databases
+    for ex in exchanges:
+        new_data = calculate_security_metadata(ex)
+        drop_table(ex + '_roi')
+        add_table(ex + '_roi', new_data)
+
+
+if __name__ == '__main__':
     while True:
-        tomorrow = datetime.utcnow() + timedelta(days=1)
-        program_stop_time = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0)
-
-        if True:  # 0 < datetime.utcnow().isoweekday() < 6:
-            # Midnight tonight!
-            print('Beginning Data Collection')
-            # update databases
-            for ex in exchanges:
-                start_time = timeit.default_timer()
-                ex_df = pd.DataFrame(columns=ex_cols)
-                print('Accessing info for %s Exchange' % ex)
-                if api_count < API_DAILY_LIMIT:
-                    symbols_json = get_all_exchange_symbols(ex)
-                else:
-                    check_in_later(program_stop_time)
-                symbols_dict = json.loads(symbols_json)  # obj now contains a dict of the data
-                total_length = len(symbols_dict)
-                i = 0
-                for symbol in symbols_dict:
-                    i += 1
-                    progress(i, total_length, status='Retrieving Data for %s.%s. %s sec Elapsed. Estimated %s sec' % (
-                        symbol['Code'], ex, round(timeit.default_timer() - start_time, 2),
-                        round((timeit.default_timer() - start_time) * (total_length - i) / i, 2)))
-                    try:
-                        if api_count < API_DAILY_LIMIT:
-                            raw_data = get_eod_for_symbol(symbol['Code'], ex)
-                        else:
-                            check_in_later(program_stop_time)
-                    except ConnectionError:
-                        print(
-                            'Connection Error with %s.%s: Going to sleep for 30 seconds before resuming' % (
-                                symbol['Code'], ex))
-                        time.sleep(15)
-                        if api_count < API_DAILY_LIMIT:
-                            raw_data = get_eod_for_symbol(symbol['Code'], ex)
-                        else:
-                            check_in_later(program_stop_time)
-                    try:
-                        formatted_data = json.loads(raw_data)
-                    except ValueError:
-                        print('Formatting Error with %s.%s' % (symbol['Code'], ex))
-                        time.sleep(15)
-                        # recall API
-                        if api_count < API_DAILY_LIMIT:
-                            raw_data = get_eod_for_symbol(symbol['Code'], ex)
-                        else:
-                            check_in_later(program_stop_time)
-                        formatted_data = json.loads(raw_data)
-
-                    if len(formatted_data) > 0:
-                        df = pd.DataFrame(formatted_data)
-                        df['date'] = pd.to_datetime(df['date'])
-                        df = df.set_index('date')['close']
-
-                        progress(i, total_length,
-                                 status='Calculating Data for %s.%s. %s sec Elapsed. Estimated %s sec left' % (
-                                     symbol['Code'], ex, round(timeit.default_timer() - start_time, 2),
-                                     round((timeit.default_timer() - start_time) * (total_length - i) / i, 2)))
-                        year_roi_totals = get_total_roi_for_years([1, 2, 3, 4, 8, 12, 16, 20], df)
-                        roi_total = get_total_roi(df)
-
-                        total_roi_avg = get_avg_roi_for_years([2, 3, 4, 8, 12, 16, 20], df)
-                        ex_df = ex_df.append(
-                            {
-                                'symbol': symbol['Code'],
-                                'name': symbol['Name'],
-                                'country': symbol['Country'],
-                                'exchange': ex,
-                                'year_one_roi_total': year_roi_totals[0],
-                                'year_two_roi_total': year_roi_totals[1],
-                                'year_three_roi_total': year_roi_totals[2],
-                                'year_four_roi_total': year_roi_totals[3],
-                                'year_eight_roi_total': year_roi_totals[4],
-                                'year_twelve_roi_total': year_roi_totals[5],
-                                'year_sixteen_roi_total': year_roi_totals[6],
-                                'year_twenty_roi_total': year_roi_totals[7],
-                                'roi_total': roi_total,
-                                'year_two_roi_avg': total_roi_avg[0],
-                                'year_three_roi_avg': total_roi_avg[1],
-                                'year_four_roi_avg': total_roi_avg[2],
-                                'year_eight_roi_avg': total_roi_avg[3],
-                                'year_twelve_roi_avg': total_roi_avg[4],
-                                'year_sixteen_roi_avg': total_roi_avg[5],
-                                'year_twenty_roi_avg': total_roi_avg[6],
-                                'total_roi_avg': total_roi_avg[7],
-                                'last_updated': datetime.utcnow(),
-                            }, ignore_index=True
-                        )
-                    else:
-                        print('Data is empty for %s.%s' % (symbol['Code'], ex))
-
-                drop_table(ex + '_roi')
-                add_table(ex + '_roi', ex_df)
+        if 0 < datetime.utcnow().isoweekday() < 6:
+            update_all_metadata_tables()
         else:
             # trigger metadata calculations and sleep till noon on Monday
-            print('It is the weekend, see ya Monday fools!')
-            after_weekend = datetime.utcnow() + timedelta(days=2)
-            weekend_time = datetime(after_weekend.year, after_weekend.month, after_weekend.day, 12, 0,
-                                    0) - datetime.utcnow()
-            time.sleep(weekend_time.seconds)
-
-
-main()
+            hibernate(2)
