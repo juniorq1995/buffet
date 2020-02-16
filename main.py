@@ -137,11 +137,11 @@ def get_eod_for_symbol(ticker, exchange, period='d', order='d'):
 def avg_helper(roi_list, year):
     """
 
-    :param roi_list: Dictionary of ROI for each year
-    :type roi_list: Dict
-    :param year: Number of years to go back in EOD data
+    :param roi_list: List of ROI for each year
+    :type roi_list: List
+    :param year: Number of years to go back in EOD data, Index
     :type year: Integer
-    :return:
+    :return: Float Avg
     """
 
     sum = 0
@@ -151,29 +151,32 @@ def avg_helper(roi_list, year):
         if roi_list[year] is not None:
             sum += roi_list[year]
             count += 1
-    return -1 if count == 0 else sum/count
+    return -1 if count == 0 else sum/float(count)
 
 
 def get_total_roi_for_years(years_back, pddf):
     """
 
     :param years_back:
-    :param pddf:
-    :return:
+    :type years_back: List of Integers
+    :param pddf: Pandas Series containing EOD Data
+    :type pddf: pandas.core.series.Series
+    :return: List or ROIs
     """
 
-    latest = pddf.first_valid_index()
+    latest = pddf.first_valid_index() # type is date
     latest_price = pddf[latest]
     return_roi = []
     for year in years_back:
-        years_back_date = latest - timedelta(days=year * 365)
+        years_back_date = latest.replace(year=latest.year - year)
+        print(years_back_date)
         if years_back_date not in pddf.index:
             years_back_date = get_nearest_day(years_back_date, pddf.index)
         if years_back_date < pddf.last_valid_index() or pddf[years_back_date] == 0:
             return_roi.append(-1)
         else:
             years_back_price = pddf[years_back_date]
-            return_roi.append((latest_price - years_back_price) / years_back_price)
+            return_roi.append((latest_price - years_back_price) / float(years_back_price))
     return return_roi
 
 
@@ -199,7 +202,7 @@ def get_avg_roi_for_years(years_back, pddf):
     :type years_back: list of Integers
     :param pddf: dataframe holding EOD data
     :type pddf: Pandas Dataframe
-    :return:
+    :return: List of avg roi for
     """
 
     # This can be dramatically sped up using the "window" method
@@ -219,8 +222,9 @@ def get_avg_roi_for_years(years_back, pddf):
 def get_roi_for_every_year(pddf):
     """
 
-    :param pddf:
-    :return:
+    :param pddf: Dataframe containing EOD data
+    :type pddf: Pandas Dataframe
+    :return: List of ROI starting from 0 to last year
     """
 
     count = 1
@@ -350,31 +354,19 @@ def create_formatted_dict(data):
     return df.set_index('date')['close']
 
 
-def get_symbol_metadata(symbol, ex, count, start_time, total_length):
+def get_symbol_metadata(symbol, ex):
     """
 
-    :param total_length:
     :param ex:
     :param symbol:
-    :param count:
-    :param start_time:
     :return:
     """
-    # Start the progress bar
-    progress(count, total_length, status='Retrieving Data for %s.%s. %s sec Elapsed. Estimated %s sec' % (
-        symbol['Code'], ex, round(timeit.default_timer() - start_time, 2),
-        round((timeit.default_timer() - start_time) * (total_length - count) / count, 2)))
 
     formatted_data = get_formatted_eod_data(symbol, ex)
     row = {}
     if len(formatted_data) > 0:
         df = create_formatted_dict(formatted_data)
 
-        # Update the progress bar
-        progress(count, total_length,
-                 status='Calculating Data for %s.%s. %s sec Elapsed. Estimated %s sec left' % (
-                     symbol['Code'], ex, round(timeit.default_timer() - start_time, 2),
-                     round((timeit.default_timer() - start_time) * (total_length - count) / count, 2)))
         year_roi_totals = get_total_roi_for_years([1, 2, 3, 4, 8, 12, 16, 20], df)
         roi_total = get_total_roi(df)
 
@@ -403,8 +395,13 @@ def calculate_security_metadata(exchange):
     count = 0
     for symbol in symbols_dict:
         count += 1
-        ex_df.append(get_symbol_metadata(symbol, exchange, count, start_time, total_length),
+        ex_df.append(get_symbol_metadata(symbol, exchange),
                      ignore_index=True)
+        # Update the progress bar
+        progress(count, total_length,
+                 status='Calculating Data for %s.%s. %s sec Elapsed. Estimated %s sec left' % (
+                     symbol['Code'], exchange, round(timeit.default_timer() - start_time, 2),
+                     round((timeit.default_timer() - start_time) * (total_length - count) / count, 2)))
     return ex_df
 
 
@@ -425,7 +422,7 @@ def update_all_metadata_tables():
 
 if __name__ == '__main__':
     while True:
-        if 0 < datetime.utcnow().isoweekday() < 6:
+        if 0 < datetime.utcnow().isoweekday() <= 7:
             update_all_metadata_tables()
         else:
             # trigger metadata calculations and sleep till noon on Monday
