@@ -11,6 +11,7 @@ import requests
 from requests.exceptions import ConnectionError
 import time
 import Constants
+import Token
 from datetime import datetime, timedelta
 import json
 import logging
@@ -19,7 +20,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 import timeit
 
-service_key = Constants.EOD_API_TOKEN
+service_key = Token.EOD_API_TOKEN
 exchanges = Constants.EXCHANGES
 exchange_cols = Constants.EX_COLS
 API_DAILY_LIMIT = 100000  # 100,000
