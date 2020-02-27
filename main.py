@@ -38,8 +38,8 @@ def hibernate(num_days):
 
     print('It is the weekend, see ya Monday fools!')
     wake_time = datetime.utcnow() + timedelta(days=num_days)
-    sleep_time = datetime(wake_time.year, wake_time.month, wake_time.day, 12, 0,
-                          0) - datetime.utcnow()
+    sleep_time = datetime(wake_time.year, wake_time.month, wake_time.day, 12,
+                          0, 0) - datetime.utcnow()
     time.sleep(sleep_time.seconds)
 
 
@@ -56,7 +56,8 @@ def sleep_api_limit_reset():
     global API_COUNT
     API_COUNT = 0
     tomorrow = datetime.utcnow() + timedelta(days=1)
-    program_stop_time = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0)
+    program_stop_time = datetime(tomorrow.year, tomorrow.month, tomorrow.day,
+                                 0, 0, 0)
     time_before_midnight = program_stop_time - datetime.utcnow()
     time.sleep(time_before_midnight.seconds + 10)
 
@@ -113,7 +114,8 @@ def get_all_exchange_symbols(exchange):
         sleep_api_limit_reset()
     API_COUNT += 1
     return requests.get(
-        'https://eodhistoricaldata.com/api/exchanges/%s?api_token=%s&fmt=json' % (exchange, service_key)).text
+        'https://eodhistoricaldata.com/api/exchanges/%s?api_token=%s&fmt=json'
+        % (exchange, service_key)).text
 
 
 def get_eod_for_symbol(ticker, exchange, period='d', order='d'):
@@ -131,8 +133,9 @@ def get_eod_for_symbol(ticker, exchange, period='d', order='d'):
     if API_COUNT > API_DAILY_LIMIT:
         sleep_api_limit_reset()
     API_COUNT += 1
-    return requests.get('https://eodhistoricaldata.com/api/eod/%s.%s?api_token=%s&period=%s&order=%s&fmt=json' % (
-        ticker, exchange, service_key, period, order)).text
+    return requests.get(
+        'https://eodhistoricaldata.com/api/eod/%s.%s?api_token=%s&period=%s&order=%s&fmt=json'
+        % (ticker, exchange, service_key, period, order)).text
 
 
 def avg_helper(roi_list, year):
@@ -152,7 +155,7 @@ def avg_helper(roi_list, year):
         if roi_list[year] is not None:
             sum += roi_list[year]
             count += 1
-    return -1 if count == 0 else sum/float(count)
+    return -1 if count == 0 else sum / float(count)
 
 
 def get_total_roi_for_years(years_back, pddf):
@@ -165,7 +168,7 @@ def get_total_roi_for_years(years_back, pddf):
     :return: List or ROIs
     """
 
-    latest = pddf.first_valid_index() # type is date
+    latest = pddf.first_valid_index()  # type is date
     latest_price = pddf[latest]
     return_roi = []
     for year in years_back:
@@ -173,26 +176,31 @@ def get_total_roi_for_years(years_back, pddf):
         print(years_back_date)
         if years_back_date not in pddf.index:
             years_back_date = get_nearest_day(years_back_date, pddf.index)
-        if years_back_date < pddf.last_valid_index() or pddf[years_back_date] == 0:
+        if years_back_date < pddf.last_valid_index(
+        ) or pddf[years_back_date] == 0:
             return_roi.append(-1)
         else:
             years_back_price = pddf[years_back_date]
-            return_roi.append((latest_price - years_back_price) / float(years_back_price))
+            return_roi.append(
+                (latest_price - years_back_price) / float(years_back_price))
     return return_roi
 
 
 def get_total_roi(pddf):
     """
-
-    :param pddf:
-    :return:
+    Calculate the total ROI for a security using its
+    historical EOD data
+    :param pddf: A Pandas object containing EOD data for a security
+    :type pddf: <class 'pandas.core.series.Series'>
+    :return: Total ROI for a security
+    :rtpye: Float
     """
-
+    print(type(pddf))
     latest = pddf.first_valid_index()
     latest_price = pddf[latest]
     years_back_price = pddf[pddf.last_valid_index()]
     if years_back_price == 0: return -1
-    return (latest_price - years_back_price) / years_back_price
+    return (latest_price - years_back_price) / float(years_back_price)
 
 
 def get_avg_roi_for_years(years_back, pddf):
@@ -245,7 +253,8 @@ def get_roi_for_every_year(pddf):
         if years_back_price == 0:
             every_roi.append(-1)  # ignore this year when calculating avg
         else:
-            every_roi.append((latest_price - years_back_price) / years_back_price)
+            every_roi.append(
+                (latest_price - years_back_price) / years_back_price)
         count += 1
     return every_roi
 
@@ -258,8 +267,9 @@ def add_table(table_name, pd):
     :return:
     """
 
-    engine = create_engine(
-        'postgresql://' + creds.PGUSER + ':' + creds.PGPASSWORD + '@' + creds.PGHOST + ':' + creds.PGPORT + '/' + creds.PGDATABASE)
+    engine = create_engine('postgresql://' + creds.PGUSER + ':' +
+                           creds.PGPASSWORD + '@' + creds.PGHOST + ':' +
+                           creds.PGPORT + '/' + creds.PGDATABASE)
     pd.to_sql(table_name, engine)
 
 
@@ -270,8 +280,9 @@ def drop_table(table_name):
     :return:
     """
 
-    engine = create_engine(
-        'postgresql://' + creds.PGUSER + ':' + creds.PGPASSWORD + '@' + creds.PGHOST + ':' + creds.PGPORT + '/' + creds.PGDATABASE)
+    engine = create_engine('postgresql://' + creds.PGUSER + ':' +
+                           creds.PGPASSWORD + '@' + creds.PGHOST + ':' +
+                           creds.PGPORT + '/' + creds.PGDATABASE)
     base = declarative_base()
     metadata = MetaData(engine, reflect=True)
     table = metadata.tables.get(table_name)
@@ -293,8 +304,8 @@ def get_formatted_eod_data(symbol, exchange):
 
     except ConnectionError:
         print(
-            'Connection Error with %s.%s: Going to sleep for 10 seconds before resuming' % (
-                symbol['Code'], exchange))
+            'Connection Error with %s.%s: Going to sleep for 10 seconds before resuming'
+            % (symbol['Code'], exchange))
         time.sleep(10)
         raw_data = get_eod_for_symbol(symbol['Code'], exchange)
     try:
@@ -308,7 +319,8 @@ def get_formatted_eod_data(symbol, exchange):
     return formatted_data
 
 
-def create_metadata_table_entry(symbol, ex, year_roi_totals, roi_total, total_roi_avg):
+def create_metadata_table_entry(symbol, ex, year_roi_totals, roi_total,
+                                total_roi_avg):
     """
 
     :param symbol:
@@ -368,12 +380,14 @@ def get_symbol_metadata(symbol, ex):
     if len(formatted_data) > 0:
         df = create_formatted_dict(formatted_data)
 
-        year_roi_totals = get_total_roi_for_years([1, 2, 3, 4, 8, 12, 16, 20], df)
+        year_roi_totals = get_total_roi_for_years([1, 2, 3, 4, 8, 12, 16, 20],
+                                                  df)
         roi_total = get_total_roi(df)
 
         total_roi_avg = get_avg_roi_for_years([2, 3, 4, 8, 12, 16, 20], df)
 
-        row = create_metadata_table_entry(symbol, ex, year_roi_totals, roi_total, total_roi_avg)
+        row = create_metadata_table_entry(symbol, ex, year_roi_totals,
+                                          roi_total, total_roi_avg)
     else:
         print('Data is empty for %s.%s' % (symbol['Code'], ex))
 
@@ -391,18 +405,23 @@ def calculate_security_metadata(exchange):
     ex_df = pd.DataFrame(columns=exchange_cols)
     print('Accessing info for %s Exchange' % exchange)
     symbols_json = get_all_exchange_symbols(exchange)
-    symbols_dict = json.loads(symbols_json)  # obj now contains a dict of the data
+    symbols_dict = json.loads(
+        symbols_json)  # obj now contains a dict of the data
     total_length = len(symbols_dict)
     count = 0
     for symbol in symbols_dict:
         count += 1
-        ex_df.append(get_symbol_metadata(symbol, exchange),
-                     ignore_index=True)
+        ex_df.append(get_symbol_metadata(symbol, exchange), ignore_index=True)
         # Update the progress bar
-        progress(count, total_length,
-                 status='Calculating Data for %s.%s. %s sec Elapsed. Estimated %s sec left' % (
-                     symbol['Code'], exchange, round(timeit.default_timer() - start_time, 2),
-                     round((timeit.default_timer() - start_time) * (total_length - count) / count, 2)))
+        progress(
+            count,
+            total_length,
+            status=
+            'Calculating Data for %s.%s. %s sec Elapsed. Estimated %s sec left'
+            % (symbol['Code'], exchange,
+               round(timeit.default_timer() - start_time, 2),
+               round((timeit.default_timer() - start_time) *
+                     (total_length - count) / count, 2)))
     return ex_df
 
 
