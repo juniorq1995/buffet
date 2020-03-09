@@ -5,24 +5,25 @@
 # company symbol, ROI past 15 years, ROI past 10 years, ROI past 5 years
 # import psycopg2
 import sys
-import pandas as pd
-import example_psql as creds
-import requests
-from requests.exceptions import ConnectionError
-import time
-import Constants
-import Token
-from datetime import datetime, timedelta
-import json
+import timeit
 import logging
+import json
+from datetime import datetime, timedelta
+import time
+import secrets
+import pandas as pd
 from sqlalchemy import MetaData
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-import timeit
+from requests.exceptions import ConnectionError
+import requests
+import example_psql as creds
+import constants
 
-service_key = Token.EOD_API_TOKEN
-exchanges = Constants.EXCHANGES
-exchange_cols = Constants.EX_COLS
+
+service_key = secrets.EOD_API_TOKEN
+exchanges = constants.EXCHANGES
+exchange_cols = constants.EX_COLS
 API_DAILY_LIMIT = 100000  # 100,000
 API_COUNT = 0  # Global Counter Variable
 
@@ -80,9 +81,9 @@ def progress(count, total, status=''):
     filled_len = int(round(bar_len * count / float(total)))
 
     percents = round(100.0 * count / float(total), 1)
-    bar = '=' * filled_len + '-' * (bar_len - filled_len)
+    status_bar = '=' * filled_len + '-' * (bar_len - filled_len)
 
-    sys.stdout.write('[%s] %s%s ...%s\r' % (bar, percents, '%', status))
+    sys.stdout.write('[%s] %s%s ...%s\r' % (status_bar, percents, '%', status))
     sys.stdout.flush()
 
 
@@ -218,7 +219,7 @@ def get_avg_roi_for_years(years_back, pddf):
     # Simply read the entry from the db, remove the last day and add in new day
     # Need to store dates of the time windows (begin, end)
     every_roi = get_roi_for_every_year(pddf)
-    if len(every_roi) == 0: return [-1] * 8
+    if not every_roi: return [-1] * 8
     avg_roi_list = []
     for year in years_back:
         avg_roi_list.append(avg_helper(every_roi, year))
@@ -377,7 +378,7 @@ def get_symbol_metadata(symbol, ex):
 
     formatted_data = get_formatted_eod_data(symbol, ex)
     row = {}
-    if len(formatted_data) > 0:
+    if formatted_data:
         df = create_formatted_dict(formatted_data)
 
         year_roi_totals = get_total_roi_for_years([1, 2, 3, 4, 8, 12, 16, 20],

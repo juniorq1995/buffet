@@ -1,8 +1,8 @@
 import unittest
-import main
-from ddt import ddt, data, file_data, unpack
-from datetime import datetime, timedelta
+from datetime import datetime
+from ddt import ddt, data
 import pandas as pd
+import main
 
 # Here shall lie the test suite
 # need to import mock
