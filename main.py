@@ -196,12 +196,43 @@ def get_total_roi(pddf):
     :return: Total ROI for a security
     :rtpye: Float
     """
-    print(type(pddf))
+
     latest = pddf.first_valid_index()
     latest_price = pddf[latest]
     years_back_price = pddf[pddf.last_valid_index()]
     if years_back_price == 0: return -1
     return (latest_price - years_back_price) / float(years_back_price)
+
+def get_regression_line(total_roi, pddf):
+    """
+    Determine a linear line of best fit for a given set of EOD data with the days representing x
+    :param total_roi:
+    :param pddf:
+    :return:
+    """
+
+    x = pddf.first_valid_index() # convert to days since 0 AD
+    y = pddf[x]
+    m = total_roi + 1
+
+    b = y - m * x
+
+    return m, b
+
+def get_linear_regression_std(slope, intercept, pddf):
+    """
+
+    :param slope:
+    :param intercept:
+    :param pddf:
+    :return:
+    """
+
+    #TODO
+    # Loop through pddf for every index (and convert index to days since 0 AD)
+    # Calculate the expected value and compare to actual value
+    # Get difference and add to sum
+    # Take square root of sum and divide by number of indexes traversed (or days)
 
 
 def get_avg_roi_for_years(years_back, pddf):
@@ -384,6 +415,11 @@ def get_symbol_metadata(symbol, ex):
         year_roi_totals = get_total_roi_for_years([1, 2, 3, 4, 8, 12, 16, 20],
                                                   df)
         roi_total = get_total_roi(df)
+
+        # TODO
+        # m,  b = get_regression_line(roi_total, df)
+        #
+        # std = get_linear_regression_std(m, b, df)
 
         total_roi_avg = get_avg_roi_for_years([2, 3, 4, 8, 12, 16, 20], df)
 
