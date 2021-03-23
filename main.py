@@ -17,7 +17,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from requests.exceptions import ConnectionError
 import requests
-import example_psql as creds
+import creds
 import constants
 
 
